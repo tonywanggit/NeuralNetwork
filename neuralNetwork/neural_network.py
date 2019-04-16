@@ -3,6 +3,7 @@
 import numpy as np
 import scipy.special
 
+
 class NeuralNetwork:
     def __init__(self, inputnodes, hiddennodes, outputnodes, learningrate):
         self.inodes = inputnodes
@@ -14,7 +15,7 @@ class NeuralNetwork:
 
         self.lr = learningrate
 
-        self.activation_function = lambda x : scipy.special.expit(x)
+        self.activation_function = lambda x: scipy.special.expit(x)
         pass
 
     def train(self, input_list, target_list):
@@ -30,8 +31,9 @@ class NeuralNetwork:
         output_errors = targets - final_outputs
         hidden_errors = np.dot(self.who.T, output_errors)
 
-        self.who += self.lr * np.dot((output_errors * final_outputs * (1 - final_outputs)), np.transpose(hidden_outputs))
-        self.wih += self.lr * np.dot((hidden_errors * hidden_outputs * (1- hidden_outputs)), np.transpose(inputs))
+        self.who += self.lr * np.dot((output_errors * final_outputs * (1 - final_outputs)),
+                                     np.transpose(hidden_outputs))
+        self.wih += self.lr * np.dot((hidden_errors * hidden_outputs * (1 - hidden_outputs)), np.transpose(inputs))
         pass
 
     def query(self, input_list: object) -> object:
@@ -44,6 +46,7 @@ class NeuralNetwork:
         final_outputs = self.activation_function(final_inputs)
 
         return final_outputs
+
 
 if __name__ == '__main__':
     input_nodes = 784
@@ -61,7 +64,7 @@ if __name__ == '__main__':
     print(np.asfarray(data_list[0].split(',')[1:]))
 
     epochs = 2
-    for e in range(epochs) :
+    for e in range(epochs):
         print("Start epoch: ", e)
         for record in data_list:
             all_values = record.split(',')
@@ -70,7 +73,6 @@ if __name__ == '__main__':
             targets[int(all_values[0])] = 0.99
             neuralNetwork.train(inputs, targets)
             pass
-
 
     test_data_file = open("/usr/local/data/mnist_test_10.csv", "r")
     test_data_list = test_data_file.readlines()
@@ -92,4 +94,4 @@ if __name__ == '__main__':
 
     scordcard_array = np.asarray(scordcard)
     print(scordcard, scordcard_array)
-    print("Performance = " , scordcard_array.sum() / scordcard_array.size)
+    print("Performance = ", scordcard_array.sum() / scordcard_array.size)
