@@ -1,7 +1,9 @@
+import matplotlib.pyplot as plt
 import numpy as np
 
-if __name__ == '__main__':
-    np_float = float(19.0)
-    print(np_float >= 1)
+ts_code = '000001.SZ'
+ts_count = 100
+print('a {0} as {1}'.format(ts_code, ts_count))
+
 
 

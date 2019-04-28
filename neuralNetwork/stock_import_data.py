@@ -11,6 +11,6 @@ if __name__ == '__main__':
 
     daily = pro.daily(ts_code='000001.SZ', start_date='19910403',
                       fields='ts_code,trade_date,open,close,pre_close,high,low,vol,amount')
-    daily.to_sql('stock_basic', db, index=False, if_exists='append')
+    daily.to_sql('stock_daily', db, index=False, if_exists='append')
 
     print(daily)
