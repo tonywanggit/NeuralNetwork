@@ -10,7 +10,7 @@ from pandas.plotting import register_matplotlib_converters
 
 register_matplotlib_converters()
 
-input_days = 5  # 取5天前的数据
+input_days = 15  # 取5天前的数据
 target_days = 2  # 预测2天后的最高值
 test_days = 30  # 测试天数
 oneday_dimensions = 5  # 每天的数据维度（open, close, high, low, vol）
@@ -19,7 +19,7 @@ hidden_nodes = 100
 output_nodes = 1
 learning_rate = 0.2
 stock_max_row = 100000
-ts_code = '002230.SZ'
+ts_code = '000062.SZ'
 neuralNetwork = NeuralNetwork(input_nodes, hidden_nodes, output_nodes, learning_rate)
 
 
@@ -68,13 +68,13 @@ if __name__ == '__main__':
     df_date = pd.read_sql(sql=sql_cmd_date, con=db, params={'ts_code': ts_code})
 
     high_max = df['high'].max()  # 全数据集的最高价
-    vol_max = df['vol'].max()  # 全数据集的最高价
+    volumn_max = df['vol'].max()  # 全数据集的最高价
     train_times = df.shape[0] - input_days - target_days + 1 - test_days  # 计算训练次数
     if train_times <= 0:
         exit("not enough data")
 
     for i in range(0, train_times):
-        train(df[i:input_days + i], df[input_days + i:input_days + target_days + i], high_max, vol_max)
+        train(df[i:input_days + i], df[input_days + i:input_days + target_days + i], high_max, volumn_max)
 
     target_outputs = []
     predicted_outputs = []
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     trade_dates = [datetime.strptime(str(m), '%Y%m%d').date() for m in trade_dates]
     for i in range(train_times, train_times + test_days):
         # print(df[i:input_days + i], df[input_days + i:input_days + target_days + i])
-        predicted_outputs.append(query(df[i:input_days + i], high_max, vol_max))
+        predicted_outputs.append(query(df[i:input_days + i], high_max, volumn_max))
         target_outputs.append(cal_output(df[i:input_days + i], df[input_days + i:input_days + target_days + i]))
 
     print(predicted_outputs)
