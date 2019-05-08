@@ -3,7 +3,7 @@ import DC
 
 if __name__ == '__main__':
     stock = '002049.SZ'
-    dc = DC.data_collect(stock, '2017-03-01', '2018-03-01')
+    dc = DC.data_collect(stock, '20170301', '20180301')
     train = dc.data_train
     target = dc.data_target
     test_case = [dc.test_case]
