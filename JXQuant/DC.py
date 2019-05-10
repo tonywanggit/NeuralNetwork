@@ -5,6 +5,11 @@ import pymysql
 
 class data_collect(object):
 
+    """data_collection
+
+        @:param param
+    """
+
     def __init__(self, in_code, start_dt, end_dt):
         ans = self.collectDATA(in_code, start_dt, end_dt)
 

@@ -10,7 +10,7 @@ def model_eva(stock, state_dt, para_window, para_dc_window):
     db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork',
                          charset='utf8')
     cursor = db.cursor()
-    ts.set_token('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+    ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
     pro = ts.pro_api()
     # 建评估时间序列, para_window参数代表回测窗口长度
     model_test_date_start = (
@@ -55,46 +55,51 @@ def model_eva(stock, state_dt, para_window, para_dc_window):
     else:
         # 在中间表中刷真实值
         for i in range(len(model_test_date_seq)):
-            sql_select = "select * from stock_all a where a.stock_code = '%s' and a.state_dt >= '%s' order by a.state_dt asc limit 2" % (
-                stock, model_test_date_seq[i])
+            sql_select = "select close from stock_daily a " \
+                         "where a.ts_code = '%s' and a.trade_date >= '%s' order by a.state_dt asc limit 2" % (
+                             stock, model_test_date_seq[i])
             cursor.execute(sql_select)
             done_set2 = cursor.fetchall()
             if len(done_set2) <= 1:
                 break
-            resu = 0
-            if float(done_set2[1][3]) / float(done_set2[0][3]) > 1.00:
-                resu = 1
-            sql_update = "update model_ev_mid w set w.resu_real = '%.2f' where w.state_dt = '%s' and w.stock_code = '%s'" % (
-                resu, model_test_date_seq[i], stock)
+            real_result = 0
+            if float(done_set2[1][0]) / float(done_set2[0][0]) > 1.00:
+                real_result = 1
+            sql_update = "update model_ev_mid w set w.resu_real = '%.2f' " \
+                         "where w.state_dt = '%s' and w.stock_code = '%s'" % (
+                             real_result, model_test_date_seq[i], stock)
             cursor.execute(sql_update)
             db.commit()
+
         # 计算查全率
-        sql_resu_recall_son = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_predict = 1 and a.resu_real = 1"
+        sql_resu_recall_son = "select count(*) from model_ev_mid a " \
+                              "where a.resu_real is not null and a.resu_predict = 1 and a.resu_real = 1"
         cursor.execute(sql_resu_recall_son)
-        recall_son = cursor.fetchall()[0][0]
+        predict_true_sample = cursor.fetchall()[0][0]
         sql_resu_recall_mon = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_real = 1"
         cursor.execute(sql_resu_recall_mon)
         recall_mon = cursor.fetchall()[0][0]
         if recall_mon == 0:
             acc = recall = acc_neg = f1 = 0
         else:
-            recall = recall_son / recall_mon
+            recall = predict_true_sample / recall_mon
+
         # 计算查准率
-        sql_resu_acc_son = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_predict = 1 and a.resu_real = 1"
-        cursor.execute(sql_resu_acc_son)
-        acc_son = cursor.fetchall()[0][0]
         sql_resu_acc_mon = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_predict = 1"
         cursor.execute(sql_resu_acc_mon)
         acc_mon = cursor.fetchall()[0][0]
         if acc_mon == 0:
             acc = recall = acc_neg = f1 = 0
         else:
-            acc = acc_son / acc_mon
+            acc = predict_true_sample / acc_mon
+
         # 计算查准率(负样本)
-        sql_resu_acc_neg_son = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_predict = -1 and a.resu_real = -1"
+        sql_resu_acc_neg_son = "select count(*) from model_ev_mid a " \
+                               "where a.resu_real is not null and a.resu_predict = -1 and a.resu_real = -1"
         cursor.execute(sql_resu_acc_neg_son)
         acc_neg_son = cursor.fetchall()[0][0]
-        sql_resu_acc_neg_mon = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_predict = -1"
+        sql_resu_acc_neg_mon = "select count(*) from model_ev_mid a " \
+                               "where a.resu_real is not null and a.resu_predict = -1"
         cursor.execute(sql_resu_acc_neg_mon)
         acc_neg_mon = cursor.fetchall()[0][0]
         if acc_neg_mon == 0:
@@ -102,6 +107,7 @@ def model_eva(stock, state_dt, para_window, para_dc_window):
             acc_neg = -1
         else:
             acc_neg = acc_neg_son / acc_neg_mon
+
         # 计算 F1 分值
         if acc + recall == 0:
             acc = recall = acc_neg = f1 = 0
