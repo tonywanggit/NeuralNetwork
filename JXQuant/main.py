@@ -8,7 +8,7 @@ import tushare as ts
 
 
 def get_sharp_rate():
-    db = pymysql.connect(host='127.0.0.1', user='root', passwd='admin', db='stock', charset='utf8')
+    db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork', charset='utf8')
     cursor = db.cursor()
 
     sql_cap = "select * from my_capital a order by seq asc"
