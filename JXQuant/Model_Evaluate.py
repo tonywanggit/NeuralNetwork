@@ -5,11 +5,8 @@ import DC
 import tushare as ts
 
 
-def model_eva(stock, state_dt, para_window, para_dc_window):
+def model_eva(stock, state_dt, para_window, para_dc_window, cursor, db):
     """模型评估主函数"""
-    db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork',
-                         charset='utf8')
-    cursor = db.cursor()
 
     # 构建回测时间序列
     model_test_date_seq = build_test_date_seq(state_dt, para_window)
@@ -51,7 +48,7 @@ def execute_and_record_model_predict(stock, date_seq, dc_window, cursor, db):
     for d in range(len(date_seq)):
         model_test_new_start = (datetime.datetime.strptime(date_seq[d], '%Y%m%d') - datetime.timedelta(
             days=dc_window)).strftime('%Y%m%d')
-        model_test_new_end = model_test_date_seq[d]
+        model_test_new_end = date_seq[d]
         try:
             dc = DC.data_collect(stock, model_test_new_start, model_test_new_end)
             if len(set(dc.data_target)) <= 1:
@@ -93,7 +90,7 @@ def calc_and_record_real_result(stock, date_seq, cursor, db):
             real_result = 1
         sql_update = "update model_ev_mid w set w.resu_real = '%.2f' " \
                      "where w.state_dt = '%s' and w.stock_code = '%s'" % (
-                         real_result, model_test_date_seq[i], stock)
+                         real_result, date_seq[i], stock)
         cursor.execute(sql_update)
         db.commit()
 
@@ -157,12 +154,15 @@ def calc_and_record_model_evaluate(stock, state_dt, date_seq, cursor, db):
                        (state_dt, stock, acc, recall, f1, acc_neg, 'svm', str(predict))
     cursor.execute(sql_final_insert)
     db.commit()
-    db.close()
     print(str(state_dt) + '   Precision : ' + str(acc) + '   Recall : ' + str(recall) + '   F1 : ' + str(
         f1) + '   Acc_Neg : ' + str(acc_neg))
 
 
 if __name__ == '__main__':
+    db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork',
+                         charset='utf8')
+    cursor = db.cursor()
+
     ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
     pro = ts.pro_api()
     df = pro.trade_cal(exchange_id='', is_open=1, start_date='20190425', end_date='20190509')

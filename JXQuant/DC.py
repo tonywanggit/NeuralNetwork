@@ -4,11 +4,7 @@ import pymysql
 
 
 class data_collect(object):
-
-    """data_collection
-
-        @:param param
-    """
+    """数据预处理"""
 
     def __init__(self, in_code, start_dt, end_dt):
         ans = self.collectDATA(in_code, start_dt, end_dt)
