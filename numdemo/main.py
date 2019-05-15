@@ -1,10 +1,3 @@
-def sub_fun(main_int):
-    print("sub_fun", main_int)
-    main_int = 2
-    print("sub_fun", main_int)
+import numpy as np
 
-
-if __name__ == '__main__':
-    main_int = 1
-    sub_fun(main_int)
-    print("main", main_int)
+print(np.arange(0, 100, 10).reshape((2, 5)))
