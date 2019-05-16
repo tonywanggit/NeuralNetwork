@@ -29,7 +29,7 @@ class Deal(object):
                 self.cur_capital = float(done_set_capital[0][0])        # 总资产
                 self.cur_money_rest = float(done_set_capital[0][2])     # 现金资产
 
-            sql_select_stock_pool = 'select stock_code, buy_price, hold_vol, hod_days from my_stock_pool'
+            sql_select_stock_pool = 'select stock_code, buy_price, hold_vol, hold_days from my_stock_pool'
             cursor.execute(sql_select_stock_pool)
             done_set_stock_pool = cursor.fetchall()
             self.stock_pool = []

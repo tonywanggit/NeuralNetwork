@@ -13,7 +13,7 @@ def model_eva(stock, state_dt, para_window, para_dc_window, cursor, db):
     truncate_model_ev_mid(db, cursor)  # 清空评估用的中间表model_ev_mid
 
     # 开始回测，其中para_dc_window参数代表建模时数据预处理所需的时间窗长度
-    return_flag = execute_and_record_model_predict(stock, para_dc_window, cursor, db)
+    return_flag = execute_and_record_model_predict(stock, model_test_date_seq, para_dc_window, cursor, db)
     if return_flag == 1:
         return -1
     else:
@@ -79,7 +79,7 @@ def calc_and_record_real_result(stock, date_seq, cursor, db):
     """计算并记录真实的结果"""
     for i in range(len(date_seq)):
         sql_select = "select close from stock_daily a " \
-                     "where a.ts_code = '%s' and a.trade_date >= '%s' order by a.state_dt asc limit 2" % (
+                     "where a.ts_code = '%s' and a.trade_date >= '%s' order by a.trade_date asc limit 2" % (
                          stock, date_seq[i])
         cursor.execute(sql_select)
         done_set2 = cursor.fetchall()

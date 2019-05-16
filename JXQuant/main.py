@@ -57,13 +57,13 @@ def loopback_testing(stock_pool, test_date_seq):
             if len(portfolio_pool) < 5:
                 print('Less than 5 stocks for portfolio!! state_dt : ' + str(test_date_seq[i]))
                 continue
-            pf_src = pf.get_portfolio(portfolio_pool, test_date_seq[i - 1], year)
+            pf_src = pf.get_portfolio(portfolio_pool, test_date_seq[i - 1], 90, db, cursor, pro)
             # 取最佳收益方向的资产组合
             risk = pf_src[1][0]
             weight = pf_src[1][1]
-            Filter.filter_main(portfolio_pool, test_date_seq[i], test_date_seq[i - 1], weight)
+            Filter.filter_main(portfolio_pool, test_date_seq[i], test_date_seq[i - 1], weight, db)
         else:
-            Filter.filter_main([], test_date_seq[i], test_date_seq[i - 1], [])
+            Filter.filter_main([], test_date_seq[i], test_date_seq[i - 1], [], db)
             cap_update_ans = cap_update.cap_update_daily(test_date_seq[i])
         print('Runnig to Date :  ' + str(test_date_seq[i]))
 
