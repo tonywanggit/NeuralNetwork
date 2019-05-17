@@ -15,25 +15,12 @@ pro = ts.pro_api()
 
 def init_test_data():
     """先清空之前的测试记录"""
-    sql_wash1 = 'delete from my_capital where seq != 1'
-    cursor.execute(sql_wash1)
+    sql_delete_my_capital = 'delete from my_capital where seq != 1'
+    cursor.execute(sql_delete_my_capital)
     db.commit()
-    sql_wash3 = 'truncate table my_stock_pool'
-    cursor.execute(sql_wash3)
+    sql_truncate_my_stock_pool = 'truncate table my_stock_pool'
+    cursor.execute(sql_truncate_my_stock_pool)
     db.commit()
-    # 清空行情源表，并插入相关股票的行情数据。该操作是为了提高回测计算速度而剔除行情表(stock_all)中的冗余数据。
-    # sql_wash4 = 'truncate table stock_info'
-    #     # cursor.execute(sql_wash4)
-    #     # db.commit()
-    # in_str = '('
-    # for x in range(len(stock_pool)):
-    #     if x != len(stock_pool) - 1:
-    #         in_str += str('\'') + str(stock_pool[x]) + str('\',')
-    #     else:
-    #         in_str += str('\'') + str(stock_pool[x]) + str('\')')
-    # sql_insert = "insert into stock_info(select * from stock_all a where a.stock_code in %s)" % (in_str)
-    # cursor.execute(sql_insert)
-    # db.commit()
 
 
 def loopback_testing(stock_pool, test_date_seq):
@@ -42,11 +29,11 @@ def loopback_testing(stock_pool, test_date_seq):
     day_index = 0
     for i in range(1, len(test_date_seq)):
         day_index += 1
+
         # 每日推进式建模，并获取对下一个交易日的预测结果
         for stock in stock_pool:
             try:
-                ans2 = ev.model_eva(stock, test_date_seq[i], 90, 365, cursor, db)
-                # print('Date : ' + str(date_seq[i]) + ' Update : ' + str(stock))
+                ev.model_eva(stock, test_date_seq[i], 90, 365, cursor, db)
             except Exception as ex:
                 print(ex)
                 continue

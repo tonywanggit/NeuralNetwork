@@ -38,8 +38,13 @@ def build_test_date_seq(state_dt, para_window):
 
 def truncate_model_ev_mid(db, cursor):
     """清空模型评估中间数据"""
-    sql_truncate_model_test = 'truncate table model_ev_mid'
-    cursor.execute(sql_truncate_model_test)
+
+    sql_truncate_ev_mid = 'truncate table model_ev_mid'
+    cursor.execute(sql_truncate_ev_mid)
+    db.commit()
+
+    sql_truncate_ev_resu = 'truncate table model_ev_resu'
+    cursor.execute(sql_truncate_ev_resu)
     db.commit()
 
 
