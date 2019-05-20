@@ -1,10 +1,11 @@
 ﻿import pymysql
-import Model_Evaluate as ev
-import Filter
-import Portfolio as pf
+import model_evaluate as ev
+import daily_execute_operator
+import portfolio as pf
 from pylab import *
-import Cap_Update_daily as cap_update
+import daily_update_capital as cap_update
 import tushare as ts
+import logging
 
 db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork',
                      charset='utf8')
@@ -35,7 +36,7 @@ def loopback_testing(stock_pool, test_date_seq):
             try:
                 ev.model_eva(stock, test_date_seq[i], 90, 365, cursor, db)
             except Exception as ex:
-                print(ex)
+                logging.exception("main exeute model evaluate fail", ex)
                 continue
 
         # 每5个交易日更新一次配仓比例
@@ -48,9 +49,9 @@ def loopback_testing(stock_pool, test_date_seq):
             # 取最佳收益方向的资产组合
             risk = pf_src[1][0]
             weight = pf_src[1][1]
-            Filter.filter_main(portfolio_pool, test_date_seq[i], test_date_seq[i - 1], weight, db)
+            daily_execute_operator.operate_stock(portfolio_pool, test_date_seq[i], test_date_seq[i - 1], weight)
         else:
-            Filter.filter_main([], test_date_seq[i], test_date_seq[i - 1], [], db)
+            daily_execute_operator.operate_stock([], test_date_seq[i], test_date_seq[i - 1], [])
             cap_update_ans = cap_update.cap_update_daily(test_date_seq[i])
         print('Runnig to Date :  ' + str(test_date_seq[i]))
 

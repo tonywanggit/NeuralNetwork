@@ -1,33 +1,36 @@
-from MySqlConnection import getPTConnection
 import logging
 
+import pymysql
+import mysql_config as Config
+from DBUtils.PooledDB import PooledDB
 
-class MySqlHelper(object):
+
+class MySql(object):
     mysql = None
 
     def __init__(self):
-        self.db = getPTConnection()
+        self.db = PTConnectionPool()
 
     def __new__(cls, *args, **kwargs):
         if not hasattr(cls, 'inst'):
-            cls.inst = super(MySqlHelper, cls).__new__(cls, *args, **kwargs)
+            cls.inst = super(MySql, cls).__new__(cls, *args, **kwargs)
         return cls.inst
 
     @classmethod
     def instance(cls):
-        if MySqlHelper.mysql is None:
-            MySqlHelper.mysql = MySqlHelper()
+        if MySql.mysql is None:
+            MySql.mysql = MySql()
 
-        return MySqlHelper.mysql
+        return MySql.mysql
 
-    def select_all(self, sql, param={}):
+    def select(self, sql, param={}):
         try:
             cursor, conn = self.execute(sql, param)
             res = cursor.fetchall()
             self.close(cursor, conn)
             return res
         except Exception as e:
-            print('selectall except   ', e.args)
+            logging.exception('selectall except   ', e)
             self.close(cursor, conn)
             return None
 
@@ -38,7 +41,7 @@ class MySqlHelper(object):
             self.close(cursor, conn)
             return res
         except Exception as e:
-            print('selectone except   ', e.args)
+            logging.exception('selectone except   ', e)
             self.close(cursor, conn)
             return None
 
@@ -46,7 +49,6 @@ class MySqlHelper(object):
         try:
             cursor, conn = self.execute(sql, param)
             _id = cursor.lastrowid
-            print('_id   ', _id)
             conn.commit()
             self.close(cursor, conn)
             # 防止表中没有id返回0
@@ -138,7 +140,51 @@ class MySqlHelper(object):
         conn.close()
 
 
+def new_db():
+    """创建一个数据库实例"""
+    return MySql.instance()
+
+
+class PTConnectionPool(object):
+    """MySQL链接池"""
+    __pool = None
+
+    def __enter__(self):
+        self.conn = self.__get_conn()
+        self.cursor = self.conn.cursor()
+        print("PT数据库创建con和cursor")
+        return self
+
+    def __get_conn(self):
+        if self.__pool is None:
+            self.__pool = PooledDB(creator=pymysql, mincached=Config.DB_MIN_CACHED, maxcached=Config.DB_MAX_CACHED,
+                                   maxshared=Config.DB_MAX_SHARED, maxconnections=Config.DB_MAX_CONNECTIONS,
+                                   blocking=Config.DB_BLOCKING, maxusage=Config.DB_MAX_USAGE,
+                                   setsession=Config.DB_SET_SESSION,
+                                   host=Config.DB_TEST_HOST, port=Config.DB_TEST_PORT,
+                                   user=Config.DB_TEST_USER, passwd=Config.DB_TEST_PASSWORD,
+                                   db=Config.DB_TEST_DBNAME, use_unicode=True, charset=Config.DB_CHARSET)
+        return self.__pool.connection()
+
+    def __exit__(self, type, value, trace):
+        """
+            @summary: 释放连接池资源
+        """
+        self.cursor.close()
+        self.conn.close()
+        print("PT连接池释放con和cursor")
+
+    def get_conn(self):
+        conn = self.__get_conn()
+        cursor = conn.cursor()
+        return cursor, conn
+
+
 if __name__ == '__main__':
-    mysql = MySqlHelper.instance()
-    result = mysql.select_all("select * from my_capital where seq = %s", [149])
+    mysql = MySql.instance()
+    result = mysql.select_one("select * from my_capital where seq = %s and bz=%s", [1, "INIT"])
     print(result)
+
+    # sql_insert = "insert into my_capital(capital,money_lock,money_rest,bz,state_dt)" \
+    #              "values(%s, %s, %s, %s, %s)"
+    # mysql.insert(sql_insert, [round(10.11, 2), round(20.33633, 2), 0.0, str('Daily_Update'), '60'])

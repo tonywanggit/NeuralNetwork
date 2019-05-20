@@ -1,7 +1,7 @@
 from sklearn import svm
 import pymysql.cursors
 import datetime
-import DC
+import data_collector
 import tushare as ts
 
 
@@ -55,7 +55,7 @@ def execute_and_record_model_predict(stock, date_seq, dc_window, cursor, db):
             days=dc_window)).strftime('%Y%m%d')
         model_test_new_end = date_seq[d]
         try:
-            dc = DC.data_collect(stock, model_test_new_start, model_test_new_end)
+            dc = data_collector.DataCollector(stock, model_test_new_start, model_test_new_end)
             if len(set(dc.data_target)) <= 1:
                 continue
         except Exception as exp:
@@ -68,7 +68,7 @@ def execute_and_record_model_predict(stock, date_seq, dc_window, cursor, db):
         test_case = [dc.test_case]
 
         # 建模 训练 预测
-        model = svm.SVC()
+        model = svm.SVC(gamma='auto')
         model.fit(train, target)
         predict_result = model.predict(test_case)
 

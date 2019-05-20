@@ -1,24 +1,21 @@
 # -*- coding:utf8 -*-
 import numpy as np
-import pymysql
+import mysql
 
 
-class data_collect(object):
+class DataCollector(object):
     """数据预处理"""
 
-    def __init__(self, in_code, start_dt, end_dt):
-        ans = self.collectDATA(in_code, start_dt, end_dt)
+    def __init__(self, ts_code, start_dt, end_dt):
+        ans = self.collectDATA(ts_code, start_dt, end_dt)
 
-    def collectDATA(self, in_code, start_dt, end_dt):
-        # db = create_engine('mysql+pymysql://root:111111@172.16.100.173:3306/neuralnetwork?charset=utf8')
+    def collectDATA(self, ts_code, start_dt, end_dt):
         # 建立数据库连接，获取日线基础行情(开盘价，收盘价，最高价，最低价，成交量，成交额)
-        db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork', charset='utf8')
-        cursor = db.cursor()
+        db = mysql.new_db()
         sql_done_set = "SELECT trade_date, ts_code, open, close, high, low, vol, amount FROM stock_daily " \
-                       "where ts_code = '%s' and trade_date >= '%s' and trade_date <= '%s' order by trade_date asc" % \
-                       (in_code, start_dt, end_dt)
-        cursor.execute(sql_done_set)
-        done_set = cursor.fetchall()
+                       "where ts_code = %s and trade_date >= %s and trade_date <= %s order by trade_date asc"
+        done_set = db.select(sql_done_set, (ts_code, start_dt, end_dt))
+
         if len(done_set) == 0:
             raise Exception
 
@@ -37,8 +34,7 @@ class data_collect(object):
             self.low_list.append(float(done_set[i][5]))
             self.vol_list.append(float(done_set[i][6]))
             self.amount_list.append(float(done_set[i][7]))
-        cursor.close()
-        db.close()
+
         # 将日线行情整合为训练集(其中self.train是输入集，self.target是输出集，self.test_case是end_dt那天的单条测试输入)
         self.data_train = []
         self.data_target = []
