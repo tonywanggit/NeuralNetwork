@@ -1,15 +1,15 @@
-﻿import pymysql
-import model_evaluate as ev
-import daily_execute_operator
-import portfolio as pf
-from pylab import *
-import daily_update_capital as cap_update
-import tushare as ts
-import logging
+﻿import logging
 
-db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork',
-                     charset='utf8')
-cursor = db.cursor()
+import tushare as ts
+from pylab import *
+
+import daily_execute_operator
+import daily_update_capital as cap_update
+import model_evaluate as ev
+import mysql
+import portfolio as pf
+
+db = mysql.new_db()
 ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
 pro = ts.pro_api()
 
@@ -17,11 +17,10 @@ pro = ts.pro_api()
 def init_test_data():
     """先清空之前的测试记录"""
     sql_delete_my_capital = 'delete from my_capital where seq != 1'
-    cursor.execute(sql_delete_my_capital)
-    db.commit()
+    db.delete(sql_delete_my_capital)
+
     sql_truncate_my_stock_pool = 'truncate table my_stock_pool'
-    cursor.execute(sql_truncate_my_stock_pool)
-    db.commit()
+    db.execute(sql_truncate_my_stock_pool)
 
 
 def loopback_testing(stock_pool, test_date_seq):
@@ -34,7 +33,7 @@ def loopback_testing(stock_pool, test_date_seq):
         # 每日推进式建模，并获取对下一个交易日的预测结果
         for stock in stock_pool:
             try:
-                ev.model_eva(stock, test_date_seq[i], 90, 365, cursor, db)
+                ev.model_eva(stock, test_date_seq[i], 90, 365)
             except Exception as ex:
                 logging.exception("main exeute model evaluate fail", ex)
                 continue
@@ -45,7 +44,7 @@ def loopback_testing(stock_pool, test_date_seq):
             if len(portfolio_pool) < 5:
                 print('Less than 5 stocks for portfolio!! state_dt : ' + str(test_date_seq[i]))
                 continue
-            pf_src = pf.get_portfolio(portfolio_pool, test_date_seq[i - 1], 90, db, cursor, pro)
+            pf_src = pf.get_portfolio(portfolio_pool, test_date_seq[i - 1], 90, pro)
             # 取最佳收益方向的资产组合
             risk = pf_src[1][0]
             weight = pf_src[1][1]
@@ -59,21 +58,19 @@ def loopback_testing(stock_pool, test_date_seq):
 def get_sharp_rate():
     """计算夏普率"""
 
-    sql_cap = "select * from my_capital a order by seq asc"
-    cursor.execute(sql_cap)
-    done_exp = cursor.fetchall()
-    db.commit()
-    cap_list = [float(x[0]) for x in done_exp]
+    sql_capital = "select * from my_capital a order by seq asc"
+    capital_records = db.select(sql_capital)
+    cap_list = [float(x[0]) for x in capital_records]
     return_list = []
-    base_cap = float(done_exp[0][0])
+    base_cap = float(capital_records[0][0])
     for i in range(len(cap_list)):
         if i == 0:
             return_list.append(float(1.00))
         else:
-            ri = (float(done_exp[i][0]) - float(done_exp[0][0])) / float(done_exp[0][0])
+            ri = (float(capital_records[i][0]) - float(capital_records[0][0])) / float(capital_records[0][0])
             return_list.append(ri)
     std = float(np.array(return_list).std())
-    exp_portfolio = (float(done_exp[-1][0]) - float(done_exp[0][0])) / float(done_exp[0][0])
+    exp_portfolio = (float(capital_records[-1][0]) - float(capital_records[0][0])) / float(capital_records[0][0])
     exp_norisk = 0.04 * (5.0 / 12.0)
     sharp_rate = (exp_portfolio - exp_norisk) / (std)
 
@@ -84,11 +81,9 @@ def plot_capital_profit(start_date, end_date):
     """回测结果可视化"""
 
     # 绘制大盘收益曲线
-    sql_show_btc = "select * from stock_index a " \
-                   "where a.stock_code = 'SH' and a.state_dt >= '%s' and a.state_dt <= '%s' " \
-                   "order by state_dt asc" % (start_date, end_date)
-    cursor.execute(sql_show_btc)
-    done_set_show_btc = cursor.fetchall()
+    sql_show_btc = "select * from stock_index where stock_code = 'SH' and state_dt >= %s and state_dt <= %s " \
+                   "order by state_dt asc"
+    done_set_show_btc = db.select(sql_show_btc, (start_date, end_date))
     # btc_x = [x[0] for x in done_set_show_btc]
     btc_x = list(range(len(done_set_show_btc)))
     btc_y = [x[3] / done_set_show_btc[0][3] for x in done_set_show_btc]
@@ -101,8 +96,7 @@ def plot_capital_profit(start_date, end_date):
     # 绘制投资收益曲线
     sql_show_profit = "select max(a.capital),a.state_dt from my_capital a " \
                       "where a.state_dt is not null group by a.state_dt order by a.state_dt asc"
-    cursor.execute(sql_show_profit)
-    done_set_show_profit = cursor.fetchall()
+    done_set_show_profit = db.select(sql_show_profit)
     profit_x = [dict_x[x[1]] for x in done_set_show_profit]
     profit_y = [x[0] / done_set_show_profit[0][0] for x in done_set_show_profit]
 
@@ -147,6 +141,3 @@ if __name__ == '__main__':
 
     # 回测结果可视化
     plot_capital_profit(date_seq_start, date_seq_end)
-
-    cursor.close()
-    db.close()

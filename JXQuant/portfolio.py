@@ -1,11 +1,13 @@
-import numpy as np
-import datetime
-import pymysql
 import copy
+import datetime
+import numpy as np
 import tushare as ts
+import mysql
+
+db = mysql.new_db()
 
 
-def get_portfolio(stock_list, state_dt, para_window, db, cursor, ts_pro):
+def get_portfolio(stock_list, state_dt, para_window, ts_pro):
     """获取投资组合
 
     返回的resu中 特征值按由小到大排列，对应的是其特征向量
@@ -15,23 +17,18 @@ def get_portfolio(stock_list, state_dt, para_window, db, cursor, ts_pro):
 
     # 建评估时间序列, para_window参数代表回测窗口长度
     model_test_date_start = (
-            datetime.datetime.strptime(state_dt, '%Y%m%d') - datetime.timedelta(days=para_window)).strftime(
-        '%Y%m%d')
-    model_test_date_end = state_dt
-    df = ts_pro.trade_cal(exchange_id='', is_open=1, start_date=model_test_date_start, end_date=model_test_date_end)
+            datetime.datetime.strptime(state_dt, '%Y%m%d') - datetime.timedelta(days=para_window)).strftime('%Y%m%d')
+    df = ts_pro.trade_cal(exchange_id='', is_open=1, start_date=model_test_date_start, end_date=state_dt)
     model_test_date_seq = list(df.iloc[:, 1])
 
     list_return = []
     for i in range(len(model_test_date_seq) - 4):
         ri = []
         for j in range(len(portfilio)):
-            sql_select = "select close from stock_daily a " \
-                         "where a.ts_code = '%s' and a.trade_date >= '%s' and a.trade_date <= '%s' " \
-                         "order by trade_date asc" % (portfilio[j], model_test_date_seq[i], model_test_date_seq[i + 4])
-            cursor.execute(sql_select)
-            done_set = cursor.fetchall()
-            db.commit()
-            close_price = [x[0] for x in done_set]
+            sql_select = "select close from stock_daily where ts_code = %s and trade_date >= %s and trade_date <= %s " \
+                         "order by trade_date asc"
+            stock_daily_rs = db.select(sql_select, (portfilio[j], model_test_date_seq[i], model_test_date_seq[i + 4]))
+            close_price = [x[0] for x in stock_daily_rs]
             base_price = 0.00
             after_mean_price = 0.00
             if len(close_price) <= 1:
@@ -41,7 +38,7 @@ def get_portfolio(stock_list, state_dt, para_window, db, cursor, ts_pro):
                 after_mean_price = np.array(close_price[1:]).mean()
                 r = (float(after_mean_price / base_price) - 1.00) * 100.00
             ri.append(r)
-            del done_set
+            del stock_daily_rs
             del close_price
             del base_price
             del after_mean_price
@@ -84,14 +81,11 @@ def get_portfolio(stock_list, state_dt, para_window, db, cursor, ts_pro):
 
 
 if __name__ == '__main__':
-    db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork',
-                         charset='utf8')
-    cursor = db.cursor()
     ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
     pro = ts.pro_api()
 
     pf = ['603912.SH', '300666.SZ', '300618.SZ', '002049.SZ', '300672.SZ']
-    ans = get_portfolio(pf, '20180101', 90, db, cursor, pro)
+    ans = get_portfolio(pf, '20180101', 90, pro)
     print('**************  Market Trend  ****************')
     print('Risk : ' + str(round(ans[0][0], 2)))
     print('Sharp ratio : ' + str(round(ans[0][2], 2)))

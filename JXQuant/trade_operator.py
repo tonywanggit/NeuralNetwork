@@ -25,14 +25,14 @@ def buy(stock_code, opdate, buy_money):
         vol = vol * 100
         if vol == 0:
             return 0
-        new_capital = deal_account.cur_capital - vol * buy_price * 0.0005  # 计算税后的总资产
-        new_money_lock = deal_account.cur_money_lock + vol * buy_price  # 计算股票资产
-        new_money_rest = deal_account.cur_money_rest - vol * buy_price * 1.0005  # 计算现金资产（税后）
+        new_capital = float(deal_account.cur_capital - vol * buy_price * 0.0005)  # 计算税后的总资产
+        new_money_lock = float(deal_account.cur_money_lock + vol * buy_price)  # 计算股票资产
+        new_money_rest = float(deal_account.cur_money_rest - vol * buy_price * 1.0005)  # 计算现金资产（税后）
 
         # 添加一条投资记录
         sql_buy_stock = "insert into my_capital(capital, money_lock, money_rest, deal_action" \
                         ", stock_code, stock_vol, state_dt, deal_price) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-        db.insert(sql_buy_stock, (round(new_capital, 2), round(new_money_lock, 2), round(new_money_rest, 2)
+        db.insert(sql_buy_stock, (float(round(new_capital, 2)), round(new_money_lock, 2), round(new_money_rest, 2)
                                   , 'BUY', stock_code, int(vol), opdate, round(buy_price, 2)))
 
         if stock_code in deal_account.stock_all:
@@ -41,11 +41,11 @@ def buy(stock_code, opdate, buy_money):
                 stock_code] + vol * buy_price) / (deal_account.stock_map_hold_volumn[stock_code] + vol)
             new_vol = deal_account.stock_map_hold_volumn[stock_code] + vol
             sql_buy_update = "update my_stock_pool set buy_price=%s, hold_vol=%s, hold_days=%s where stock_code=%s"
-            db.update(sql_buy_update, (round(new_buy_price, 2), int(new_vol), 1, stock_code))
+            db.update(sql_buy_update, (round(new_buy_price, 2), int(new_vol), 1))
         else:
             sql_buy_insert = "insert into my_stock_pool(stock_code,buy_price,hold_vol,hold_days) " \
                              "VALUES (%s, %s, %s, %s)"
-            db.insert(sql_buy_insert, (stock_code, buy_price, int(vol), 1, stock_code))
+            db.insert(sql_buy_insert, (stock_code, buy_price, int(vol), 1))
         return 1
     return 0
 
@@ -85,11 +85,11 @@ def sell(stock_code, opdate, predict):
 
 
 def __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, deal_action, bz):
-    new_money_lock = deal_account.cur_money_lock - sell_price * hold_vol
-    new_money_rest = deal_account.cur_money_rest + sell_price * hold_vol
-    new_capital = deal_account.cur_capital + (sell_price - buy_price) * hold_vol
-    new_profit = (sell_price - buy_price) * hold_vol
-    new_profit_rate = sell_price / buy_price
+    new_money_lock = float(deal_account.cur_money_lock - sell_price * hold_vol)
+    new_money_rest = float(deal_account.cur_money_rest + sell_price * hold_vol)
+    new_capital = float(deal_account.cur_capital + (sell_price - buy_price) * hold_vol)
+    new_profit = float((sell_price - buy_price) * hold_vol)
+    new_profit_rate = float(sell_price / buy_price)
 
     # 添加一条投资记录(卖出股票)
     sql_sell_stock = "insert into my_capital(capital, money_lock, money_rest, deal_action" \

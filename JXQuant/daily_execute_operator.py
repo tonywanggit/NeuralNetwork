@@ -17,6 +17,7 @@ def operate_stock(stock_new, state_dt, predict_dt, poz):
         sql_predict = "select predict from model_ev_resu where state_dt = %s and stock_code = %s"
         predict_stock_record = db.select_one(sql_predict, (predict_dt, stock))
 
+        predict = 0
         if predict_stock_record is not None:
             predict = int(predict_stock_record[0])
         trade_operator.sell(stock, state_dt, predict)

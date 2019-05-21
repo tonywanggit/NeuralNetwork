@@ -1,3 +1,3 @@
 import numpy as np
 
-print(np.arange(0, 100, 10).reshape((2, 5)))
+print(type(round(107777733.2333, 2)))

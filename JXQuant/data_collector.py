@@ -7,9 +7,11 @@ class DataCollector(object):
     """数据预处理"""
 
     def __init__(self, ts_code, start_dt, end_dt):
-        ans = self.collectDATA(ts_code, start_dt, end_dt)
+        ans = self.make_data_collect(ts_code, start_dt, end_dt)
 
-    def collectDATA(self, ts_code, start_dt, end_dt):
+    def make_data_collect(self, ts_code, start_dt, end_dt):
+        """制作训练用的数据集"""
+
         # 建立数据库连接，获取日线基础行情(开盘价，收盘价，最高价，最低价，成交量，成交额)
         db = mysql.new_db()
         sql_done_set = "SELECT trade_date, ts_code, open, close, high, low, vol, amount FROM stock_daily " \

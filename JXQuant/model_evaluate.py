@@ -1,25 +1,27 @@
-from sklearn import svm
-import pymysql.cursors
 import datetime
-import data_collector
 import tushare as ts
+from sklearn import svm
+import data_collector
+import mysql
+
+db = mysql.new_db()
 
 
-def model_eva(stock, state_dt, para_window, para_dc_window, cursor, db):
+def model_eva(stock, state_dt, para_window, para_dc_window):
     """模型评估主函数"""
 
     # 构建回测时间序列
     model_test_date_seq = build_test_date_seq(state_dt, para_window)
-    truncate_model_ev_mid(db, cursor)  # 清空评估用的中间表model_ev_mid
+    truncate_model_ev_mid()  # 清空评估用的中间表model_ev_mid
 
     # 开始回测，其中para_dc_window参数代表建模时数据预处理所需的时间窗长度
-    return_flag = execute_and_record_model_predict(stock, model_test_date_seq, para_dc_window, cursor, db)
+    return_flag = execute_and_record_model_predict(stock, model_test_date_seq, para_dc_window)
     if return_flag == 1:
         return -1
     else:
         # 计算实际结果并与预测值比较，根据比较结果给模型评分并记录结果
-        calc_and_record_real_result(stock, model_test_date_seq, cursor, db)
-        calc_and_record_model_evaluate(stock, state_dt, model_test_date_seq, cursor, db)
+        calc_and_record_real_result(stock, model_test_date_seq)
+        calc_and_record_model_evaluate(stock, state_dt, model_test_date_seq)
     return 1
 
 
@@ -36,19 +38,17 @@ def build_test_date_seq(state_dt, para_window):
     return list(df.iloc[:, 1])
 
 
-def truncate_model_ev_mid(db, cursor):
+def truncate_model_ev_mid():
     """清空模型评估中间数据"""
 
-    sql_truncate_ev_mid = 'truncate table model_ev_mid'
-    cursor.execute(sql_truncate_ev_mid)
-    db.commit()
+    sql_truncate_model_ev_mid = 'truncate table model_ev_mid'
+    db.execute(sql_truncate_model_ev_mid)
 
-    sql_truncate_ev_resu = 'truncate table model_ev_resu'
-    cursor.execute(sql_truncate_ev_resu)
-    db.commit()
+    sql_truncate_model_ev_resu = 'truncate table model_ev_resu'
+    db.execute(sql_truncate_model_ev_resu)
 
 
-def execute_and_record_model_predict(stock, date_seq, dc_window, cursor, db):
+def execute_and_record_model_predict(stock, date_seq, dc_window):
     """执行并记录模型预测结果"""
     for d in range(len(date_seq)):
         model_test_new_start = (datetime.datetime.strptime(date_seq[d], '%Y%m%d') - datetime.timedelta(
@@ -73,67 +73,63 @@ def execute_and_record_model_predict(stock, date_seq, dc_window, cursor, db):
         predict_result = model.predict(test_case)
 
         # 将预测结果插入到中间表
-        sql_insert = "insert into model_ev_mid(state_dt,stock_code,resu_predict)values('%s','%s','%.2f')" % (
-            model_test_new_end, stock, float(predict_result[0]))
-        cursor.execute(sql_insert)
-        db.commit()
+        sql_insert = "insert into model_ev_mid(state_dt, stock_code, resu_predict)values(%s, %s, %s)"
+        db.insert(sql_insert, (model_test_new_end, stock, round(float(predict_result[0]), 2)))
         return 0
 
 
-def calc_and_record_real_result(stock, date_seq, cursor, db):
+def calc_and_record_real_result(stock, date_seq):
     """计算并记录真实的结果"""
     for i in range(len(date_seq)):
         sql_select = "select close from stock_daily a " \
-                     "where a.ts_code = '%s' and a.trade_date >= '%s' order by a.trade_date asc limit 2" % (
-                         stock, date_seq[i])
-        cursor.execute(sql_select)
-        done_set2 = cursor.fetchall()
-        if len(done_set2) <= 1:
+                     "where a.ts_code = %s and a.trade_date >= %s order by a.trade_date asc limit 2"
+        stock_daily_records = db.select(sql_select, (stock, date_seq[i]))
+
+        if len(stock_daily_records) <= 1:
             break
+
         real_result = 0
-        if float(done_set2[1][0]) / float(done_set2[0][0]) > 1.00:
+        if float(stock_daily_records[1][0]) / float(stock_daily_records[0][0]) > 1.00:
             real_result = 1
-        sql_update = "update model_ev_mid w set w.resu_real = '%.2f' " \
-                     "where w.state_dt = '%s' and w.stock_code = '%s'" % (
-                         real_result, date_seq[i], stock)
-        cursor.execute(sql_update)
-        db.commit()
+        sql_update = "update model_ev_mid set resu_real = %s where state_dt = %s and stock_code = %s"
+        db.update(sql_update, (real_result, date_seq[i], stock))
 
 
-def calc_and_record_model_evaluate(stock, state_dt, date_seq, cursor, db):
+def calc_and_record_model_evaluate(stock, state_dt, date_seq):
     """计算并记录模型评估结果"""
 
     # 计算查全率
-    sql_resu_recall_son = "select count(*) from model_ev_mid a " \
-                          "where a.resu_real is not null and a.resu_predict = 1 and a.resu_real = 1"
-    cursor.execute(sql_resu_recall_son)
-    predict_true_sample = cursor.fetchall()[0][0]
-    sql_resu_recall_mon = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_real = 1"
-    cursor.execute(sql_resu_recall_mon)
-    recall_mon = cursor.fetchall()[0][0]
+    sql_recall_son = "select count(*) from model_ev_mid " \
+                     "where resu_real is not null and resu_predict = 1 and resu_real = 1"
+    predict_true_record = db.select_one(sql_recall_son)
+    predict_true_sample = predict_true_record[0]
+
+    sql_recall_mon = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_real = 1"
+    recall_mon_record = db.select_one(sql_recall_mon)
+    recall_mon = recall_mon_record[0]
     if recall_mon == 0:
         acc = recall = acc_neg = f1 = 0
     else:
         recall = predict_true_sample / recall_mon
 
     # 计算查准率
-    sql_resu_acc_mon = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_predict = 1"
-    cursor.execute(sql_resu_acc_mon)
-    acc_mon = cursor.fetchall()[0][0]
+    sql_acc_mon = "select count(*) from model_ev_mid a where a.resu_real is not null and a.resu_predict = 1"
+    acc_mon_record = db.select_one(sql_acc_mon)
+    acc_mon = acc_mon_record[0]
     if acc_mon == 0:
         acc = recall = acc_neg = f1 = 0
     else:
         acc = predict_true_sample / acc_mon
 
     # 计算查准率(负样本)
-    sql_resu_acc_neg_son = "select count(*) from model_ev_mid a " \
-                           "where a.resu_real is not null and a.resu_predict = -1 and a.resu_real = -1"
-    cursor.execute(sql_resu_acc_neg_son)
-    acc_neg_son = cursor.fetchall()[0][0]
-    sql_resu_acc_neg_mon = "select count(*) from model_ev_mid a " \
-                           "where a.resu_real is not null and a.resu_predict = -1"
-    cursor.execute(sql_resu_acc_neg_mon)
-    acc_neg_mon = cursor.fetchall()[0][0]
+    sql_acc_neg_son = "select count(*) from model_ev_mid a " \
+                      "where a.resu_real is not null and a.resu_predict = -1 and a.resu_real = -1"
+    acc_neg_son_record = db.select_one(sql_acc_neg_son)
+    acc_neg_son = acc_neg_son_record[0]
+
+    sql_acc_neg_mon = "select count(*) from model_ev_mid where resu_real is not null and resu_predict = -1"
+    acc_neg_mon_record = db.select_one(sql_acc_neg_mon)
+    acc_neg_mon = acc_neg_mon_record[0]
     if acc_neg_mon == 0:
         acc_neg = -1
     else:
@@ -146,30 +142,27 @@ def calc_and_record_model_evaluate(stock, state_dt, date_seq, cursor, db):
         f1 = (2 * acc * recall) / (acc + recall)
 
     # 取出评估日期当天的预测值
-    sql_predict = "select resu_predict from model_ev_mid a where a.state_dt = '%s'" % (date_seq[-1])
-    cursor.execute(sql_predict)
-    done_predict = cursor.fetchall()
+    sql_predict = "select resu_predict from model_ev_mid where state_dt = %s"
+    done_predict_records = db.select(sql_predict, (date_seq[-1]))
+
     predict = 0
-    if len(done_predict) != 0:
-        predict = int(done_predict[0][0])
+    if len(done_predict_records) != 0:
+        predict = int(done_predict_records[0][0])
 
     # 将评估结果存入结果表model_ev_resu中
-    sql_final_insert = "insert into model_ev_resu(state_dt,stock_code,acc,recall,f1,acc_neg,bz,predict)" \
-                       "values('%s','%s','%.4f','%.4f','%.4f','%.4f','%s','%s')" % \
-                       (state_dt, stock, acc, recall, f1, acc_neg, 'svm', str(predict))
-    cursor.execute(sql_final_insert)
-    db.commit()
+    sql_final_insert = "insert into model_ev_resu(state_dt, stock_code, acc,recall, f1, acc_neg, bz, predict)" \
+                       "values(%s, %s, %s, %s, %s, %s, %s, %s)"
+    db.insert(sql_final_insert, (state_dt, stock, round(acc, 4), round(recall, 4), round(f1, 4), round(acc_neg, 4)
+                                 , 'svm', str(predict)))
+
     print(str(state_dt) + '   Precision : ' + str(acc) + '   Recall : ' + str(recall) + '   F1 : ' + str(
         f1) + '   Acc_Neg : ' + str(acc_neg))
 
 
 if __name__ == '__main__':
-    db = pymysql.connect(host='172.16.100.173', port=3306, user='root', passwd='111111', db='neuralnetwork',
-                         charset='utf8')
-    cursor = db.cursor()
-
     ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
     pro = ts.pro_api()
+
     df = pro.trade_cal(exchange_id='', is_open=1, start_date='20190425', end_date='20190509')
     date_temp = list(df.iloc[:, 1])
     print(df)
