@@ -1,17 +1,13 @@
-﻿import logging
-
-import tushare as ts
-from pylab import *
+﻿from pylab import *
 
 import daily_execute_operator
 import daily_update_capital as cap_update
 import model_evaluate as ev
 import mysql
 import portfolio as pf
+from tushare_pro import get_trade_date_seq
 
 db = mysql.new_db()
-ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
-pro = ts.pro_api()
 
 
 def init_test_data():
@@ -44,9 +40,9 @@ def loopback_testing(stock_pool, test_date_seq):
             if len(portfolio_pool) < 5:
                 print('Less than 5 stocks for portfolio!! state_dt : ' + str(test_date_seq[i]))
                 continue
-            pf_src = pf.get_portfolio(portfolio_pool, test_date_seq[i - 1], 90, pro)
+
             # 取最佳收益方向的资产组合
-            risk = pf_src[1][0]
+            pf_src = pf.get_portfolio(portfolio_pool, test_date_seq[i - 1], 90)
             weight = pf_src[1][1]
             daily_execute_operator.operate_stock(portfolio_pool, test_date_seq[i], test_date_seq[i - 1], weight)
         else:
@@ -119,15 +115,14 @@ def plot_capital_profit(start_date, end_date):
 if __name__ == '__main__':
     year = 2018
     date_seq_start = str(year) + '0301'
-    date_seq_end = str(year) + '0401'
+    date_seq_end = str(year) + '0501'
     stock_pool = ['603912.SH', '300666.SZ', '300618.SZ', '002049.SZ', '300672.SZ']
 
     # 先清空之前的测试记录,并创建中间表
     init_test_data()
 
     # 构建回测时间序列
-    df = pro.trade_cal(exchange_id='', is_open=1, start_date=date_seq_start, end_date=date_seq_end)
-    date_seq = list(df.iloc[:, 1])
+    date_seq = get_trade_date_seq(date_seq_start, date_seq_end)
     print(date_seq)
 
     # 开始模拟交易

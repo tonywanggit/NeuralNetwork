@@ -7,13 +7,13 @@ def operate_stock(stock_new, state_dt, predict_dt, poz):
     db = mysql.new_db()
 
     # 先更新持股天数
-    sql_update_hold_days = 'update my_stock_pool w set w.hold_days = w.hold_days + 1'
+    sql_update_hold_days = 'update my_stock_pool set hold_days = hold_days + 1'
     db.update(sql_update_hold_days)
 
     # 先卖出
     deal_account = account.CurrentAccount(state_dt)
-    stock_pool_local = deal_account.stock_pool
-    for stock in stock_pool_local:
+    stock_pool_hold = deal_account.stock_pool  # 持仓股票池
+    for stock in stock_pool_hold:
         sql_predict = "select predict from model_ev_resu where state_dt = %s and stock_code = %s"
         predict_stock_record = db.select_one(sql_predict, (predict_dt, stock))
 
@@ -24,7 +24,7 @@ def operate_stock(stock_new, state_dt, predict_dt, poz):
 
     # 后买入
     for stock_index in range(len(stock_new)):
-        deal_buy = account.CurrentAccount(state_dt)
+        deal_account = account.CurrentAccount(state_dt)
 
         # # 如果模型f1分值低于50则不买入
         # sql_f1_check = "select * from model_ev_resu a where a.stock_code = '%s' and a.state_dt < '%s' order by a.state_dt desc limit 1"%(stock_new[stock_index],state_dt)
@@ -36,5 +36,5 @@ def operate_stock(stock_new, state_dt, predict_dt, poz):
         #         print('F1 Warning !!')
         #         continue
 
-        trade_operator.buy(stock_new[stock_index], state_dt, poz[stock_index] * deal_buy.cur_money_rest)
-        del deal_buy
+        trade_operator.buy(stock_new[stock_index], state_dt, poz[stock_index] * deal_account.cur_money_rest)
+        del deal_account

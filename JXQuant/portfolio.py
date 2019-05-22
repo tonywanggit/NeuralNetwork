@@ -1,13 +1,13 @@
 import copy
 import datetime
 import numpy as np
-import tushare as ts
 import mysql
+from tushare_pro import get_trade_date_seq
 
 db = mysql.new_db()
 
 
-def get_portfolio(stock_list, state_dt, para_window, ts_pro):
+def get_portfolio(stock_list, state_dt, para_window):
     """获取投资组合
 
     返回的resu中 特征值按由小到大排列，对应的是其特征向量
@@ -18,8 +18,7 @@ def get_portfolio(stock_list, state_dt, para_window, ts_pro):
     # 建评估时间序列, para_window参数代表回测窗口长度
     model_test_date_start = (
             datetime.datetime.strptime(state_dt, '%Y%m%d') - datetime.timedelta(days=para_window)).strftime('%Y%m%d')
-    df = ts_pro.trade_cal(exchange_id='', is_open=1, start_date=model_test_date_start, end_date=state_dt)
-    model_test_date_seq = list(df.iloc[:, 1])
+    model_test_date_seq = get_trade_date_seq(model_test_date_start, state_dt)
 
     list_return = []
     for i in range(len(model_test_date_seq) - 4):
@@ -81,11 +80,8 @@ def get_portfolio(stock_list, state_dt, para_window, ts_pro):
 
 
 if __name__ == '__main__':
-    ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
-    pro = ts.pro_api()
-
     pf = ['603912.SH', '300666.SZ', '300618.SZ', '002049.SZ', '300672.SZ']
-    ans = get_portfolio(pf, '20180101', 90, pro)
+    ans = get_portfolio(pf, '20180101', 90)
     print('**************  Market Trend  ****************')
     print('Risk : ' + str(round(ans[0][0], 2)))
     print('Sharp ratio : ' + str(round(ans[0][2], 2)))

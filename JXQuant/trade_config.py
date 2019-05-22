@@ -1,0 +1,8 @@
+# 最高成交价限制
+MAX_BUY_PRICE_LIMIT = 195
+
+# 单次交易成本
+DEAL_COST_RATIO = 0.0005
+
+# 单次最低成交量
+DEAL_MIN_VOLUMN = 100

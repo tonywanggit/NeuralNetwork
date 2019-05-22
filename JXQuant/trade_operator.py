@@ -1,5 +1,6 @@
 import account
 import mysql
+from trade_config import *
 
 """模拟交易-操作模块"""
 
@@ -17,17 +18,17 @@ def buy(stock_code, opdate, buy_money):
             return -1
 
         buy_price = float(stock_close_record[0])
-        if buy_price >= 195:  # 最高成交价限额保护
+        if buy_price >= MAX_BUY_PRICE_LIMIT:  # 最高成交价限额保护
             return 0
 
         # 计算出可以都买的股票数量
-        vol, rest = divmod(min(deal_account.cur_money_rest, buy_money), buy_price * 100)
+        vol, rest = divmod(min(deal_account.cur_money_rest, buy_money), buy_price * DEAL_MIN_VOLUMN)
         vol = vol * 100
         if vol == 0:
             return 0
-        new_capital = float(deal_account.cur_capital - vol * buy_price * 0.0005)  # 计算税后的总资产
+        new_capital = float(deal_account.cur_capital - vol * buy_price * DEAL_COST_RATIO)  # 计算税后的总资产
         new_money_lock = float(deal_account.cur_money_lock + vol * buy_price)  # 计算股票资产
-        new_money_rest = float(deal_account.cur_money_rest - vol * buy_price * 1.0005)  # 计算现金资产（税后）
+        new_money_rest = float(deal_account.cur_money_rest - vol * buy_price * (1 + DEAL_COST_RATIO))  # 计算现金资产
 
         # 添加一条投资记录
         sql_buy_stock = "insert into my_capital(capital, money_lock, money_rest, deal_action" \
@@ -37,9 +38,9 @@ def buy(stock_code, opdate, buy_money):
 
         if stock_code in deal_account.stock_all:
             # 计算加仓后的股票平均成本和最新的持仓量
-            new_buy_price = (deal_account.stock_map_buyprice[stock_code] * deal_account.stock_map_hold_volumn[
-                stock_code] + vol * buy_price) / (deal_account.stock_map_hold_volumn[stock_code] + vol)
-            new_vol = deal_account.stock_map_hold_volumn[stock_code] + vol
+            new_buy_price = (deal_account.stock_buyprice[stock_code] * deal_account.stock_hold_volumn[
+                stock_code] + vol * buy_price) / (deal_account.stock_hold_volumn[stock_code] + vol)
+            new_vol = deal_account.stock_hold_volumn[stock_code] + vol
             sql_buy_update = "update my_stock_pool set buy_price=%s, hold_vol=%s, hold_days=%s where stock_code=%s"
             db.update(sql_buy_update, (round(new_buy_price, 2), int(new_vol), 1))
         else:
@@ -55,9 +56,9 @@ def sell(stock_code, opdate, predict):
     db = mysql.new_db()
 
     deal_account = account.CurrentAccount(opdate)
-    buy_price = deal_account.stock_map_buyprice[stock_code]
-    hold_vol = deal_account.stock_map_hold_volumn[stock_code]
-    hold_days = deal_account.stock_map_hold_days[stock_code]
+    buy_price = deal_account.stock_buyprice[stock_code]
+    hold_vol = deal_account.stock_hold_volumn[stock_code]
+    hold_days = deal_account.stock_hold_days[stock_code]
 
     sql_stock_close = "select close from stock_daily a where a.trade_date = %s and a.ts_code = %s"
     stock_close_record = db.select_one(sql_stock_close, (opdate, stock_code))
@@ -67,19 +68,19 @@ def sell(stock_code, opdate, predict):
     sell_price = float(stock_close_record[0])  # 以当日收盘价作为卖出价
 
     if sell_price > buy_price * 1.03 and hold_vol > 0:
-        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'GOODSELL')
+        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'GOOD')
         return 1
 
     elif sell_price < buy_price * 0.97 and hold_vol > 0:
-        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'BADSELL')
+        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'BAD')
         return 1
 
     elif hold_days >= 4 and hold_vol > 0:
-        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'OVERTIME', 'OVERTIMESELL')
+        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'OVERTIME')
         return 1
 
     elif predict == -1:
-        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'Predict', 'PredictSell')
+        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'PREDICT')
         return 1
     return 0
 

@@ -1,8 +1,8 @@
-import datetime
-import tushare as ts
+import datetime as dt
 from sklearn import svm
 import data_collector
 import mysql
+from tushare_pro import build_test_date_seq
 
 db = mysql.new_db()
 
@@ -25,19 +25,6 @@ def model_eva(stock, state_dt, para_window, para_dc_window):
     return 1
 
 
-def build_test_date_seq(state_dt, para_window):
-    """构建回测时间序列"""
-    ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
-    pro = ts.pro_api()
-    # 建评估时间序列, para_window参数代表回测窗口长度
-    model_test_date_start = (
-            datetime.datetime.strptime(state_dt, '%Y%m%d') - datetime.timedelta(days=para_window)).strftime(
-        '%Y%m%d')
-    model_test_date_end = state_dt
-    df = pro.trade_cal(exchange_id='', is_open=1, start_date=model_test_date_start, end_date=model_test_date_end)
-    return list(df.iloc[:, 1])
-
-
 def truncate_model_ev_mid():
     """清空模型评估中间数据"""
 
@@ -51,11 +38,10 @@ def truncate_model_ev_mid():
 def execute_and_record_model_predict(stock, date_seq, dc_window):
     """执行并记录模型预测结果"""
     for d in range(len(date_seq)):
-        model_test_new_start = (datetime.datetime.strptime(date_seq[d], '%Y%m%d') - datetime.timedelta(
-            days=dc_window)).strftime('%Y%m%d')
-        model_test_new_end = date_seq[d]
+        dc_start_date = (dt.datetime.strptime(date_seq[d], '%Y%m%d') - dt.timedelta(days=dc_window)).strftime('%Y%m%d')
+        dc_end_date = date_seq[d]
         try:
-            dc = data_collector.DataCollector(stock, model_test_new_start, model_test_new_end)
+            dc = data_collector.DataCollector(stock, dc_start_date, dc_end_date)
             if len(set(dc.data_target)) <= 1:
                 continue
         except Exception as exp:
@@ -74,7 +60,7 @@ def execute_and_record_model_predict(stock, date_seq, dc_window):
 
         # 将预测结果插入到中间表
         sql_insert = "insert into model_ev_mid(state_dt, stock_code, resu_predict)values(%s, %s, %s)"
-        db.insert(sql_insert, (model_test_new_end, stock, round(float(predict_result[0]), 2)))
+        db.insert(sql_insert, (dc_end_date, stock, round(float(predict_result[0]), 2)))
         return 0
 
 
@@ -157,15 +143,3 @@ def calc_and_record_model_evaluate(stock, state_dt, date_seq):
 
     print(str(state_dt) + '   Precision : ' + str(acc) + '   Recall : ' + str(recall) + '   F1 : ' + str(
         f1) + '   Acc_Neg : ' + str(acc_neg))
-
-
-if __name__ == '__main__':
-    ts.set_token('17642bbd8d39b19c02cdf56002196c8709db65ce14ee62e08935ab0c')
-    pro = ts.pro_api()
-
-    df = pro.trade_cal(exchange_id='', is_open=1, start_date='20190425', end_date='20190509')
-    date_temp = list(df.iloc[:, 1])
-    print(df)
-    print(date_temp)
-    # model_test_date_seq = [(datetime.datetime.strptime(x, "%Y%m%d")).strftime('%Y-%m-%d') for x in date_temp]
-    # print(model_test_date_seq)
