@@ -79,7 +79,7 @@ def sell(stock_code, opdate, predict):
         __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'OVERTIME')
         return 1
 
-    elif predict == -1:
+    elif predict == 0:
         __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'PREDICT')
         return 1
     return 0

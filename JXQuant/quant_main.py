@@ -18,18 +18,21 @@ def init_test_data():
     sql_truncate_my_stock_pool = 'truncate table my_stock_pool'
     db.execute(sql_truncate_my_stock_pool)
 
+    sql_truncate_model_ev_resu = 'truncate table model_ev_resu'
+    db.execute(sql_truncate_model_ev_resu)
 
-def loopback_testing(stock_pool, test_date_seq):
+    sql_truncate_model_ev_mid = 'truncate table model_ev_mid'
+    db.execute(sql_truncate_model_ev_mid)
+
+
+def loopback_testing(stock_pool, loopback_date_seq):
     """执行回测序列"""
 
-    day_index = 0
-    for i in range(1, len(test_date_seq)):
-        day_index += 1
-
-        # 每日推进式建模，并获取对下一个交易日的预测结果
+    # 每日推进式建模，并获取对下一个交易日的预测结果
+    for day_index in range(1, len(loopback_date_seq)):
         for stock in stock_pool:
             try:
-                ev.model_eva(stock, test_date_seq[i], 90, 365)
+                ev.model_eva(stock, loopback_date_seq[day_index], 90, 365)
             except Exception as ex:
                 logging.exception("main exeute model evaluate fail", ex)
                 continue
@@ -38,17 +41,18 @@ def loopback_testing(stock_pool, test_date_seq):
         if divmod(day_index + 4, 5)[1] == 0:
             portfolio_pool = stock_pool
             if len(portfolio_pool) < 5:
-                print('Less than 5 stocks for portfolio!! state_dt : ' + str(test_date_seq[i]))
+                print('Less than 5 stocks for portfolio!! state_dt : ' + str(loopback_date_seq[day_index]))
                 continue
 
             # 取最佳收益方向的资产组合
-            pf_src = pf.get_portfolio(portfolio_pool, test_date_seq[i - 1], 90)
+            pf_src = pf.get_portfolio(portfolio_pool, loopback_date_seq[day_index - 1], 90)
             weight = pf_src[1][1]
-            daily_execute_operator.operate_stock(portfolio_pool, test_date_seq[i], test_date_seq[i - 1], weight)
+            daily_execute_operator.operate_stock(portfolio_pool, loopback_date_seq[day_index], loopback_date_seq[day_index - 1], weight)
         else:
-            daily_execute_operator.operate_stock([], test_date_seq[i], test_date_seq[i - 1], [])
-            cap_update_ans = cap_update.cap_update_daily(test_date_seq[i])
-        print('Runnig to Date :  ' + str(test_date_seq[i]))
+            daily_execute_operator.operate_stock([], loopback_date_seq[day_index], loopback_date_seq[day_index - 1], [])
+            cap_update.cap_update_daily(loopback_date_seq[day_index])
+
+        print('Runnig to Date :  ' + str(loopback_date_seq[day_index]))
 
 
 def get_sharp_rate():
@@ -79,22 +83,22 @@ def plot_capital_profit(start_date, end_date):
     # 绘制大盘收益曲线
     sql_show_btc = "select * from stock_index where stock_code = 'SH' and state_dt >= %s and state_dt <= %s " \
                    "order by state_dt asc"
-    done_set_show_btc = db.select(sql_show_btc, (start_date, end_date))
-    # btc_x = [x[0] for x in done_set_show_btc]
-    btc_x = list(range(len(done_set_show_btc)))
-    btc_y = [x[3] / done_set_show_btc[0][3] for x in done_set_show_btc]
+    show_btc_records = db.select(sql_show_btc, (start_date, end_date))
+    # btc_x = [x[0] for x in show_btc_records]
+    btc_x = list(range(len(show_btc_records)))
+    btc_y = [x[3] / show_btc_records[0][3] for x in show_btc_records]
     dict_anti_x = {}
     dict_x = {}
     for a in range(len(btc_x)):
-        dict_anti_x[btc_x[a]] = done_set_show_btc[a][0]
-        dict_x[done_set_show_btc[a][0]] = btc_x[a]
+        dict_anti_x[btc_x[a]] = show_btc_records[a][0]
+        dict_x[show_btc_records[a][0]] = btc_x[a]
 
     # 绘制投资收益曲线
-    sql_show_profit = "select max(a.capital),a.state_dt from my_capital a " \
-                      "where a.state_dt is not null group by a.state_dt order by a.state_dt asc"
-    done_set_show_profit = db.select(sql_show_profit)
-    profit_x = [dict_x[x[1]] for x in done_set_show_profit]
-    profit_y = [x[0] / done_set_show_profit[0][0] for x in done_set_show_profit]
+    sql_show_profit = "select max(capital), state_dt from my_capital " \
+                      "where state_dt is not null group by state_dt order by state_dt asc"
+    show_profit_records = db.select(sql_show_profit)
+    profit_x = [dict_x[x[1]] for x in show_profit_records]
+    profit_y = [x[0] / show_profit_records[0][0] for x in show_profit_records]
 
     # 绘制收益率曲线（含大盘基准收益曲线）
     def c_fnx(val, poz):
@@ -115,10 +119,10 @@ def plot_capital_profit(start_date, end_date):
 if __name__ == '__main__':
     year = 2018
     date_seq_start = str(year) + '0301'
-    date_seq_end = str(year) + '0501'
+    date_seq_end = str(year) + '0401'
     stock_pool = ['603912.SH', '300666.SZ', '300618.SZ', '002049.SZ', '300672.SZ']
 
-    # 先清空之前的测试记录,并创建中间表
+    # 先清空之前的投资记录和持仓股票
     init_test_data()
 
     # 构建回测时间序列

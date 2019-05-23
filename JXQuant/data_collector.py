@@ -7,7 +7,7 @@ class DataCollector(object):
     """数据预处理"""
 
     def __init__(self, ts_code, start_dt, end_dt):
-        ans = self.make_data_collect(ts_code, start_dt, end_dt)
+        self.make_data_collect(ts_code, start_dt, end_dt)
 
     def make_data_collect(self, ts_code, start_dt, end_dt):
         """制作训练用的数据集"""

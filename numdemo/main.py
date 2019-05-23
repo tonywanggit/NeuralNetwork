@@ -1,3 +1,4 @@
 import numpy as np
 
-print(type(round(107777733.2333, 2)))
+for i in range(1, 3):
+    print(i)

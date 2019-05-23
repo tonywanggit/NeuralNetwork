@@ -7,21 +7,21 @@ from tushare_pro import build_test_date_seq
 db = mysql.new_db()
 
 
-def model_eva(stock, state_dt, para_window, para_dc_window):
+def model_eva(stock, state_dt, model_ev_window, data_collect_window):
     """模型评估主函数"""
 
-    # 构建回测时间序列
-    model_test_date_seq = build_test_date_seq(state_dt, para_window)
+    # 构建模型评估时间序列
+    model_eva_date_seq = build_test_date_seq(state_dt, model_ev_window)
     truncate_model_ev_mid()  # 清空评估用的中间表model_ev_mid
 
     # 开始回测，其中para_dc_window参数代表建模时数据预处理所需的时间窗长度
-    return_flag = execute_and_record_model_predict(stock, model_test_date_seq, para_dc_window)
+    return_flag = execute_and_record_model_predict(stock, model_eva_date_seq, data_collect_window)
     if return_flag == 1:
         return -1
     else:
         # 计算实际结果并与预测值比较，根据比较结果给模型评分并记录结果
-        calc_and_record_real_result(stock, model_test_date_seq)
-        calc_and_record_model_evaluate(stock, state_dt, model_test_date_seq)
+        calc_and_record_real_result(stock, model_eva_date_seq)
+        calc_and_record_model_evaluate(stock, state_dt, model_eva_date_seq)
     return 1
 
 
@@ -30,9 +30,6 @@ def truncate_model_ev_mid():
 
     sql_truncate_model_ev_mid = 'truncate table model_ev_mid'
     db.execute(sql_truncate_model_ev_mid)
-
-    sql_truncate_model_ev_resu = 'truncate table model_ev_resu'
-    db.execute(sql_truncate_model_ev_resu)
 
 
 def execute_and_record_model_predict(stock, date_seq, dc_window):
@@ -61,7 +58,7 @@ def execute_and_record_model_predict(stock, date_seq, dc_window):
         # 将预测结果插入到中间表
         sql_insert = "insert into model_ev_mid(state_dt, stock_code, resu_predict)values(%s, %s, %s)"
         db.insert(sql_insert, (dc_end_date, stock, round(float(predict_result[0]), 2)))
-        return 0
+    return 0
 
 
 def calc_and_record_real_result(stock, date_seq):
@@ -109,11 +106,11 @@ def calc_and_record_model_evaluate(stock, state_dt, date_seq):
 
     # 计算查准率(负样本)
     sql_acc_neg_son = "select count(*) from model_ev_mid a " \
-                      "where a.resu_real is not null and a.resu_predict = -1 and a.resu_real = -1"
+                      "where a.resu_real is not null and a.resu_predict = 0 and a.resu_real = 0"
     acc_neg_son_record = db.select_one(sql_acc_neg_son)
     acc_neg_son = acc_neg_son_record[0]
 
-    sql_acc_neg_mon = "select count(*) from model_ev_mid where resu_real is not null and resu_predict = -1"
+    sql_acc_neg_mon = "select count(*) from model_ev_mid where resu_real is not null and resu_predict = 0"
     acc_neg_mon_record = db.select_one(sql_acc_neg_mon)
     acc_neg_mon = acc_neg_mon_record[0]
     if acc_neg_mon == 0:
@@ -128,12 +125,12 @@ def calc_and_record_model_evaluate(stock, state_dt, date_seq):
         f1 = (2 * acc * recall) / (acc + recall)
 
     # 取出评估日期当天的预测值
-    sql_predict = "select resu_predict from model_ev_mid where state_dt = %s"
-    done_predict_records = db.select(sql_predict, (date_seq[-1]))
+    sql_predict = "select resu_predict from model_ev_mid where state_dt = %s limit 1"
+    predict_record = db.select_one(sql_predict, (date_seq[-1]))
 
     predict = 0
-    if len(done_predict_records) != 0:
-        predict = int(done_predict_records[0][0])
+    if predict_record is not None:
+        predict = int(predict_record[0])
 
     # 将评估结果存入结果表model_ev_resu中
     sql_final_insert = "insert into model_ev_resu(state_dt, stock_code, acc,recall, f1, acc_neg, bz, predict)" \
@@ -141,5 +138,5 @@ def calc_and_record_model_evaluate(stock, state_dt, date_seq):
     db.insert(sql_final_insert, (state_dt, stock, round(acc, 4), round(recall, 4), round(f1, 4), round(acc_neg, 4)
                                  , 'svm', str(predict)))
 
-    print(str(state_dt) + '   Precision : ' + str(acc) + '   Recall : ' + str(recall) + '   F1 : ' + str(
-        f1) + '   Acc_Neg : ' + str(acc_neg))
+    print(state_dt + '  ' + stock + '   Predict : ' + str(predict) + '   Precision : ' + str(acc) + '   Recall : '
+          + str(recall) + '   F1 : ' + str(f1) + '   Acc_Neg : ' + str(acc_neg))
