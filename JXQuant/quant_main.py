@@ -1,5 +1,4 @@
 ﻿from pylab import *
-
 import daily_execute_operator
 import daily_update_capital as cap_update
 import model_evaluate as ev
@@ -30,12 +29,7 @@ def loopback_testing(stock_pool, loopback_date_seq):
 
     # 每日推进式建模，并获取对下一个交易日的预测结果
     for day_index in range(1, len(loopback_date_seq)):
-        for stock in stock_pool:
-            try:
-                ev.model_eva(stock, loopback_date_seq[day_index], 90, 365)
-            except Exception as ex:
-                logging.exception("main exeute model evaluate fail", ex)
-                continue
+        ev.model_eva_multi_process(stock_pool, loopback_date_seq[day_index])
 
         # 每5个交易日更新一次配仓比例
         if divmod(day_index + 4, 5)[1] == 0:
@@ -47,7 +41,8 @@ def loopback_testing(stock_pool, loopback_date_seq):
             # 取最佳收益方向的资产组合
             pf_src = pf.get_portfolio(portfolio_pool, loopback_date_seq[day_index - 1], 90)
             weight = pf_src[1][1]
-            daily_execute_operator.operate_stock(portfolio_pool, loopback_date_seq[day_index], loopback_date_seq[day_index - 1], weight)
+            daily_execute_operator.operate_stock(portfolio_pool, loopback_date_seq[day_index],
+                                                 loopback_date_seq[day_index - 1], weight)
         else:
             daily_execute_operator.operate_stock([], loopback_date_seq[day_index], loopback_date_seq[day_index - 1], [])
             cap_update.cap_update_daily(loopback_date_seq[day_index])
@@ -58,21 +53,22 @@ def loopback_testing(stock_pool, loopback_date_seq):
 def get_sharp_rate():
     """计算夏普率"""
 
-    sql_capital = "select * from my_capital a order by seq asc"
+    sql_capital = "select capital from my_capital a order by seq asc"
     capital_records = db.select(sql_capital)
-    cap_list = [float(x[0]) for x in capital_records]
+    capital_list = [float(x[0]) for x in capital_records]
     return_list = []
-    base_cap = float(capital_records[0][0])
-    for i in range(len(cap_list)):
+    init_capital = float(capital_records[0][0])  # 初始资金
+    for i in range(len(capital_list)):
         if i == 0:
             return_list.append(float(1.00))
         else:
-            ri = (float(capital_records[i][0]) - float(capital_records[0][0])) / float(capital_records[0][0])
+            ri = (float(capital_records[i][0]) - init_capital) / init_capital
             return_list.append(ri)
+
     std = float(np.array(return_list).std())
-    exp_portfolio = (float(capital_records[-1][0]) - float(capital_records[0][0])) / float(capital_records[0][0])
+    exp_portfolio = (float(capital_records[-1][0]) - init_capital) / init_capital
     exp_norisk = 0.04 * (5.0 / 12.0)
-    sharp_rate = (exp_portfolio - exp_norisk) / (std)
+    sharp_rate = (exp_portfolio - exp_norisk) / std
 
     return sharp_rate, std
 
@@ -81,12 +77,12 @@ def plot_capital_profit(start_date, end_date):
     """回测结果可视化"""
 
     # 绘制大盘收益曲线
-    sql_show_btc = "select * from stock_index where stock_code = 'SH' and state_dt >= %s and state_dt <= %s " \
+    sql_show_btc = "select state_dt, close from stock_index where stock_code = 'SH' and state_dt between %s and %s " \
                    "order by state_dt asc"
     show_btc_records = db.select(sql_show_btc, (start_date, end_date))
-    # btc_x = [x[0] for x in show_btc_records]
     btc_x = list(range(len(show_btc_records)))
-    btc_y = [x[3] / show_btc_records[0][3] for x in show_btc_records]
+    base_btc_close_price = show_btc_records[0][1]  # 投资周期开始时候的大盘收盘价
+    btc_y = [x[1] / base_btc_close_price for x in show_btc_records]
     dict_anti_x = {}
     dict_x = {}
     for a in range(len(btc_x)):
@@ -129,8 +125,11 @@ if __name__ == '__main__':
     date_seq = get_trade_date_seq(date_seq_start, date_seq_end)
     print(date_seq)
 
-    # 开始模拟交易
+    # 开始回测、模拟交易
+    starttime = datetime.datetime.now()
     loopback_testing(stock_pool, date_seq)
+    endtime = datetime.datetime.now()
+    print('模型回测耗时: ', (endtime - starttime).seconds)
     print('ALL FINISHED!!')
 
     # 计算夏普率

@@ -32,9 +32,9 @@ def buy(stock_code, opdate, buy_money):
 
         # 添加一条投资记录
         sql_buy_stock = "insert into my_capital(capital, money_lock, money_rest, deal_action" \
-                        ", stock_code, stock_vol, state_dt, deal_price) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                        ", stock_code, stock_vol, state_dt, deal_price, bz) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
         db.insert(sql_buy_stock, (float(round(new_capital, 2)), round(new_money_lock, 2), round(new_money_rest, 2)
-                                  , 'BUY', stock_code, int(vol), opdate, round(buy_price, 2)))
+                                  , 'BUY', stock_code, int(vol), opdate, round(buy_price, 2), 'BUY'))
 
         if stock_code in deal_account.stock_all:
             # 计算加仓后的股票平均成本和最新的持仓量
@@ -68,19 +68,19 @@ def sell(stock_code, opdate, predict):
     sell_price = float(stock_close_record[0])  # 以当日收盘价作为卖出价
 
     if sell_price > buy_price * 1.03 and hold_vol > 0:
-        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'GOOD')
+        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'GOOD_SELL')
         return 1
 
     elif sell_price < buy_price * 0.97 and hold_vol > 0:
-        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'BAD')
+        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'BAD_SELL')
         return 1
 
     elif hold_days >= 4 and hold_vol > 0:
-        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'OVERTIME')
+        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'OVERTIME_SELL')
         return 1
 
     elif predict == 0:
-        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'PREDICT')
+        __sell_op(db, deal_account, stock_code, sell_price, buy_price, hold_vol, opdate, 'SELL', 'PREDICT_SELL')
         return 1
     return 0
 

@@ -182,7 +182,10 @@ class PTConnectionPool(object):
 
 if __name__ == '__main__':
     mysql = MySql.instance()
-    result = mysql.select_one("select * from my_capital where seq = %s and bz=%s", [1, "INIT"])
+    # result = mysql.select_one("select * from my_capital where seq = %s and bz=%s", [1, "INIT"])
+    # print(result)
+
+    result = mysql.select_one("select * from stock_basic where ts_code = %s", '000001.SZ')
     print(result)
 
     # sql_insert = "insert into my_capital(capital,money_lock,money_rest,bz,state_dt)" \
