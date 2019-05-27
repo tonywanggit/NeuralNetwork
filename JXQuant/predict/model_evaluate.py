@@ -1,17 +1,13 @@
 import datetime as dt
-from sklearn import svm
-import data_collector
-import mysql
 import multiprocessing as mp
-from tushare_pro import build_test_date_seq
+
+from sklearn import svm
+from datasource import mysql
+from datasource.tushare_pro import build_test_date_seq
+from predict.svm import data_collector
+from quant_config import MODEL_EVALUATE_DAYS, DATA_COLLECT_DAYS
 
 db = mysql.new_db()
-
-# 模型评估时间窗口（单位：天）
-MODEL_EVALUATE_DAYS = 90
-
-# 数据集时间跨度（单位：天）
-DATA_COLLECT_DAYS = 365
 
 
 def model_eva_multi_process(stock_pool, predict_date):
@@ -96,14 +92,14 @@ def calc_and_record_real_result(stock, date_seq):
     """计算并记录真实的结果"""
     for i in range(len(date_seq)):
         sql_select = "select close from stock_daily a " \
-                     "where a.ts_code = %s and a.trade_date <= %s order by a.trade_date desc limit 2"
+                     "where a.ts_code = %s and a.trade_date >= %s order by a.trade_date asc limit 2"
         stock_daily_records = db.select(sql_select, (stock, date_seq[i]))
 
         if len(stock_daily_records) <= 1:
             break
 
         real_result = 0
-        if float(stock_daily_records[0][0]) / float(stock_daily_records[1][0]) > 1.00:
+        if float(stock_daily_records[1][0]) / float(stock_daily_records[0][0]) > 1.00:
             real_result = 1
         sql_update = "update model_ev_mid set resu_real = %s where state_dt = %s and stock_code = %s"
         db.update(sql_update, (real_result, date_seq[i], stock))

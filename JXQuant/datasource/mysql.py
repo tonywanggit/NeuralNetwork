@@ -1,7 +1,7 @@
 import logging
 
 import pymysql
-import mysql_config as Config
+from datasource import mysql_config as Config
 from DBUtils.PooledDB import PooledDB
 
 

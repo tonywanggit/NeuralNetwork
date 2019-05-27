@@ -1,4 +1,4 @@
-import mysql
+from datasource import mysql
 
 
 def cap_update_daily(state_dt):

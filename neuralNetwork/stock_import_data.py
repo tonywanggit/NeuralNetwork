@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # import_stock('000002.SZ', '19910129')
 
     stock_list = pd.read_sql(sql='select ts_code, list_date from stock_basic where update_date  < %(last_update)s or '
-                                 'update_date is null', con=db, params={'last_update': '20190430'})
+                                 'update_date is null', con=db, params={'last_update': '20190526'})
     stock_update_date = pd.read_sql(
         sql='select ts_code, max(trade_date) as update_date  from stock_daily group by ts_code', con=db)
     for index, row in stock_list.iterrows():

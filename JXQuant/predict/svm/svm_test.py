@@ -1,5 +1,5 @@
 from sklearn import svm
-import data_collector
+from predict.svm import data_collector
 
 if __name__ == '__main__':
     stock = '002049.SZ'

@@ -1,7 +1,7 @@
 import copy
 import numpy as np
-import mysql
-from tushare_pro import build_test_date_seq
+from datasource import mysql
+from datasource.tushare_pro import build_test_date_seq
 
 db = mysql.new_db()
 
@@ -76,6 +76,28 @@ def get_portfolio(stock_list, state_dt, para_window):
         resu.append(con_temp)
     return resu
 
+
+def get_sharp_rate():
+    """计算夏普率"""
+
+    sql_capital = "select capital from my_capital a order by seq asc"
+    capital_records = db.select(sql_capital)
+    capital_list = [float(x[0]) for x in capital_records]
+    return_list = []
+    init_capital = float(capital_records[0][0])  # 初始资金
+    for i in range(len(capital_list)):
+        if i == 0:
+            return_list.append(float(1.00))
+        else:
+            ri = (float(capital_records[i][0]) - init_capital) / init_capital
+            return_list.append(ri)
+
+    std = float(np.array(return_list).std())
+    exp_portfolio = (float(capital_records[-1][0]) - init_capital) / init_capital
+    exp_norisk = 0.04 * (5.0 / 12.0)
+    sharp_rate = (exp_portfolio - exp_norisk) / std
+
+    return sharp_rate, std
 
 if __name__ == '__main__':
     pf = ['603912.SH', '300666.SZ', '300618.SZ', '002049.SZ', '300672.SZ']

@@ -1,6 +1,6 @@
 # -*- coding:utf8 -*-
 import numpy as np
-import mysql
+from datasource import mysql
 
 
 class DataCollector(object):

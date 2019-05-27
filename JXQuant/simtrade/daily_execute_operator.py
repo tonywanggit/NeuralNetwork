@@ -1,9 +1,8 @@
-import account
-import mysql
-import trade_operator
+from datasource import mysql
+from simtrade import trade_operator, account
 
 
-def operate_stock(stock_new, state_dt, predict_dt, poz):
+def operate_stock(stock_new, stock_weight, state_dt, predict_yestoday):
     db = mysql.new_db()
 
     # 先更新持股天数
@@ -15,7 +14,7 @@ def operate_stock(stock_new, state_dt, predict_dt, poz):
     stock_pool_hold = deal_account.stock_pool  # 持仓股票池
     for stock in stock_pool_hold:
         sql_predict = "select predict from model_ev_resu where state_dt = %s and stock_code = %s"
-        predict_stock_record = db.select_one(sql_predict, (predict_dt, stock))
+        predict_stock_record = db.select_one(sql_predict, (predict_yestoday, stock))
 
         predict = 0
         if predict_stock_record is not None:
@@ -36,5 +35,5 @@ def operate_stock(stock_new, state_dt, predict_dt, poz):
         #         print('F1 Warning !!')
         #         continue
 
-        trade_operator.buy(stock_new[stock_index], state_dt, poz[stock_index] * deal_account.cur_money_rest)
+        trade_operator.buy(stock_new[stock_index], state_dt, stock_weight[stock_index] * deal_account.cur_money_rest)
         del deal_account
