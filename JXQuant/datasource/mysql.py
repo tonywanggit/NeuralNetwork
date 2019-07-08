@@ -23,6 +23,10 @@ class MySql(object):
 
         return MySql.mysql
 
+    def get_conn(self):
+        _, conn = self.db.get_conn()
+        return conn
+
     def select(self, sql, param={}):
         try:
             cursor, conn = self.execute(sql, param)

@@ -23,3 +23,14 @@ def build_test_date_seq(state_dt, para_window):
     start_date = (dt.datetime.strptime(state_dt, '%Y%m%d') - dt.timedelta(days=para_window)).strftime('%Y%m%d')
     df = pro.trade_cal(exchange_id='', is_open=1, start_date=start_date, end_date=state_dt)
     return list(df.iloc[:, 1])
+
+
+def get_fut_basic(exchange):
+    """获取期货合约信息"""
+    df = pro.fut_basic(exchange=exchange, fut_type='1', fields='ts_code,symbol,name,list_date,delist_date')
+    return df
+
+
+if __name__ == '__main__':
+    fut_basic = get_fut_basic("CFFEX")
+    print(fut_basic)

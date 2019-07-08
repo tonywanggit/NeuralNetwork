@@ -34,8 +34,8 @@ def plot_capital_profit(start_date, end_date):
         else:
             return ''
 
-    fig = plt.figure(figsize=(20, 12))
-    ax = fig.add_subplot(111)
+    fig = plt.figure()
+    ax = fig.add_subplot(211)
     ax.xaxis.set_major_formatter(FuncFormatter(c_fnx))
 
     plt.plot(btc_x, btc_y, color='blue')
