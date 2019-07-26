@@ -27,8 +27,8 @@ def is_vegas_stock(ts_code):
     stock_daily_df["sma_144"] = sma_144
     stock_daily_df["sma_169"] = sma_169
 
-    window = 4
-    uplift = 0.04
+    window = 5
+    uplift = 0.03
 
     try:
         return vegas_judge(ts_code, stock_daily_df.tail(window), window, uplift)
@@ -48,7 +48,7 @@ def vegas_judge(ts_code, data_last_five, window, min_uplift):
     sma_up_max = max(stock_daily_tail5.iloc[window - 1, 3], stock_daily_tail5.iloc[window - 1, 4])
     uplift = (sma12_end - sma12_start) / sma12_start
     if sma12_start < sma_low_min and sma12_end > sma_up_max and sma12_start < sma12_end \
-            and min_uplift < uplift < 0.8 and not ts_code.startswith("300"):
+            and min_uplift < uplift < 2 and not ts_code.startswith("300"):
         print(f"-------------{ts_code}---{uplift}---------")
         # print("-------------{}---{}---------".format(ts_code, uplift))
         print(stock_daily_tail5)
